@@ -1,0 +1,38 @@
+addr	data	label	mnem.	operand		comment
+-----------------------------------------------------------------------------
+001000/012706	start:	MOV	#177130,SP	;Moves FDC CSR address to SP. SP is not really needed	
+001002/177130					;in this code, so it's used as regular register R6
+001004/010605		MOV	SP,R5		;Also saves FDC CSR address to R5
+001006/012700		MOV	#403,R0		
+001010/000403		
+001012/012716	2$:	MOV	#320,@SP	;Switches on drive #0 and tries to step back head
+001014/000320		
+001016/005001		CLR	R1
+001020/077101	4$:	SOB	R1,4$		;Delay loop 65536 cycles
+001022/032716		BIT	#4000,@SP	;Tests if head is at track 0
+001024/004000
+001026/001771		BEQ	2$		;If not - repeats loop until succeeds
+001030/052725		BIS	#40000,(R5)+	;Starts track read and increments R5 to FDC DR address
+001032/040000
+001034/032716	6$:	BIT	#1000,@SP	;Waits for index pulse beginning, loops until it's received
+001036/001000
+001040/001375		BNE	6$
+001042/032716	8$:	BIT	#1000,@SP	;Waits for index pulse end, loops until it's received
+001044/001000
+001046/001775		BEQ	8$
+						;Data read loop. Reads first 512 bytes from first track into RAM
+						;starting from address 0;
+						
+001050/005715	10$:	TST	@R5		;??? What's the purpose of this ???
+001052/005716	12$:	TST	@SP		;Tests if MSB of CSR=1. 1 means that data can be read from controller
+001054/100376		BPL	12$
+001056/020027		CMP	R0,#201		;This skips checksum of first 256 bytes
+001060/000201
+001062/001404		BEQ	14$
+001064/020027		CMP	R0,#401		;This skips track number - first two bytes of track
+001066/000401
+001070/003001		BGT	14$		
+001072/011521		MOV	@R5,(R1)+	;Copy FDC DR to RAM and increment R1 as RAM pointer. R1 should be 0
+						;after being used as delay loop variable
+001074/077013	14$:	SOB	R0,10$		
+001076/005007		CLR	PC		;Jumps to address 0 - starting execution of read data.
